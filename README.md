@@ -1,6 +1,6 @@
 # boids-tank
 
-A tank of flocking triangles you can tune while they fly — three sliders for the three rules that make a flock, and a button that blows it apart.
+A tank of flocking darts you can tune while they fly — three sliders for the three rules that make a flock, and a button that blows it apart.
 
 ![screenshot](screenshot.png)
 
@@ -8,14 +8,13 @@ A tank of flocking triangles you can tune while they fly — three sliders for t
 
 ## What it does
 
-Up to 140 boids cross a pale field, fewer in a small tank, each steering by three
-rules: move toward the flock's centre (cohesion), match the flock's heading
-(alignment), and keep clear of close neighbours (separation). Each rule has a
-slider, and moving one changes the flock in flight — no restart, no reset. Turn
-separation off and the flock packs into one dark knot a few boids wide; turn
-cohesion off and it spreads into an evenly spaced field, still all pointing the
-same way. The **scatter** button gives every boid an outward shove from the
-centre; the flock finds itself again a few seconds later.
+Up to 140 boids cross a pale field, each dragging a short ink trail. Three
+rules steer them: cohesion toward the flock's centre, alignment with its
+heading, separation from close neighbours. Every rule has a slider, and moving
+one changes the flock in flight — at separation 0 it packs into one dark knot
+about a dozen boids wide. The **scatter** button throws every boid outward
+from the centre in a starburst of trails, and the flock finds itself again a
+few seconds later.
 
 Everything is keyboard-reachable, and it works at phone width.
 
