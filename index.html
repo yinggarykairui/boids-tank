@@ -11,7 +11,7 @@
     --paper: #f7f6f2;
     --field: #fbfaf7;
     --ink: #17181a;
-    --muted: #8a8880;
+    --muted: #6b6961;
     --rule: #ddd9d0;
     --accent: #b4432c;
   }
@@ -31,9 +31,11 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /* A definite height, not a minimum: the column can then shrink as well as
+   * grow, so a shorter viewport gives the tank back instead of scrolling. */
   .wrap {
     max-width: 1000px;
-    min-height: 100vh;
+    height: 100vh;
     margin: 0 auto;
     padding: 20px 16px 24px;
     display: flex;
@@ -41,8 +43,8 @@
     gap: 14px;
   }
 
-  @supports (min-height: 100dvh) {
-    .wrap { min-height: 100dvh; }
+  @supports (height: 100dvh) {
+    .wrap { height: 100dvh; }
   }
 
   header {
@@ -66,17 +68,23 @@
     color: var(--muted);
   }
 
+  /* flex-basis 0 so the tank is pure slack: it takes what is left after the
+   * controls, and gives it straight back when the viewport shortens. */
   #tank {
-    flex: 1 1 auto;
-    min-height: 240px;
+    flex: 1 1 0;
+    min-height: 100px;
     border: 1px solid var(--rule);
     background: var(--field);
     position: relative;
     overflow: hidden;
   }
 
+  /* Out of flow, so the canvas's own pixel height can never hold the tank
+   * open at its previous size. */
   canvas {
     display: block;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
   }
@@ -85,18 +93,33 @@
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 10px 22px;
+    gap: 10px 28px;
   }
 
   .control {
     flex: 1 1 190px;
     min-width: 150px;
+    position: relative;
   }
 
+  /* A hairline in the gutter, so two thumbs at neighbouring extremes do not
+   * read as one two-handled slider. Absolute, so track widths stay equal. */
+  .control + .control::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 2px;
+    bottom: 10px;
+    border-left: 1px solid var(--rule);
+  }
+
+  /* Label and value sit together: the pair must be closer to each other than
+   * to the next control, or the strip reads as "cohesion … 50% alignment". */
   .control .row {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 8px;
     font-size: 12px;
     letter-spacing: 0.04em;
     color: var(--muted);
@@ -107,7 +130,9 @@
     color: var(--ink);
   }
 
-  /* Range input: 44px tall for touch, but only a hairline is painted. */
+  /* Range input: 44px tall for touch, but only a hairline is painted.
+   * --p (0..1) is written by the same function that writes the readout, and
+   * drives how much of the track is accent. */
   input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -118,17 +143,21 @@
     padding: 0;
     background: transparent;
     cursor: pointer;
+    --p: 0.5;
+    --fill: calc(8px + (100% - 16px) * var(--p));
   }
 
   input[type="range"]::-webkit-slider-runnable-track {
     height: 2px;
-    background: var(--accent);
+    background: linear-gradient(to right,
+      var(--accent) 0 var(--fill), var(--rule) var(--fill) 100%);
     border-radius: 2px;
   }
 
   input[type="range"]::-moz-range-track {
     height: 2px;
-    background: var(--accent);
+    background: linear-gradient(to right,
+      var(--accent) 0 var(--fill), var(--rule) var(--fill) 100%);
     border-radius: 2px;
   }
 
@@ -174,22 +203,53 @@
     outline-offset: 3px;
   }
 
+  /* The range box is 44px tall for touch but only a hairline is painted, so
+   * an outset ring lands on the label above it. Keep the ring inside. */
+  input[type="range"]:focus-visible { outline-offset: -1px; }
+
   footer {
     font-size: 12px;
     color: var(--muted);
   }
 
+  /* Padded to clear the 24x24 minimum target without moving the line. */
   footer a {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: -6px -10px;
     color: var(--muted);
-    text-decoration-color: var(--rule);
+    text-decoration-color: var(--muted);
     text-underline-offset: 2px;
   }
 
   footer a:hover { color: var(--ink); }
 
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Short viewports (landscape phones, 200% zoom): trim the chrome so all
+   * four controls still land above the fold. */
+  @media (max-height: 620px) {
+    .wrap { padding: 12px 16px 14px; gap: 10px; }
+    .controls { gap: 6px 28px; }
+    input[type="range"] { height: 34px; }
+    button { min-height: 38px; }
+  }
+
   @media (max-width: 520px) {
     .controls { gap: 4px 18px; }
     .control { flex: 1 1 100%; }
+    .control + .control::before { content: none; }
     button { width: 100%; margin-top: 8px; }
   }
 </style>
@@ -221,7 +281,8 @@
     <button type="button" id="scatter">scatter</button>
   </div>
 
-  <footer>edges wrap. <a href="tests.html">tests</a></footer>
+  <footer>drag a rule to feel it. edges wrap. <a href="tests.html">tests</a></footer>
+  <p id="status" class="sr-only" role="status" aria-live="polite"></p>
 </div>
 
 <script src="boids.js"></script>
@@ -376,6 +437,8 @@
       p[key] = v / 100;
       world.setParams(p);
       out.textContent = Math.round(v) + '%';
+      /* Fill the track up to the thumb, so the accent encodes the value. */
+      input.style.setProperty('--p', String(Boids.clamp(v / 100, 0, 1)));
     }
     input.addEventListener('input', apply);
     apply();
@@ -385,8 +448,20 @@
   bind('alignment', 'alignment');
   bind('separation', 'separation');
 
+  /* One polite announcement per scatter, and nothing on a slider tick —
+   * the range inputs already speak their own values. */
+  var status = document.getElementById('status');
+  var sayTimer = 0;
+  function say(msg) {
+    if (!status) return;
+    status.textContent = '';
+    clearTimeout(sayTimer);
+    sayTimer = setTimeout(function () { status.textContent = msg; }, 60);
+  }
+
   document.getElementById('scatter').addEventListener('click', function () {
     world.scatter();
+    say('Flock scattered. It re-forms in a few seconds.');
   });
 
   if (calmQuery.addEventListener) {
