@@ -389,9 +389,10 @@
     canvas.style.height = h + 'px';
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     /* A resized canvas comes back transparent; start it on solid field so
-     * the trails have something to fade into. */
-    ctx.fillStyle = SOLID;
-    ctx.fillRect(0, 0, w, h);
+     * the trails have something to fade into. In device pixels, because the
+     * backing store is rounded up: at scale 1.25 a 966px tank is 1208 device
+     * columns, and a CSS-space fill reaches 1207.5 of them. */
+    paintField(SOLID);
     scaleTri = triScale(w, h);
     world.resize(w, h);
     world.setCount(countFor(w, h));
@@ -443,10 +444,22 @@
   var SOLID = 'rgb(250, 250, 244)';
   var FADE = 'rgba(253, 253, 248, 0.16)';
 
+  /* Cover the whole backing store, transform reset, in device pixels. Under
+   * the scale transform the fill stops at cssW*scale, and Math.round() has
+   * already made the canvas a device pixel wider or taller than that at
+   * fractional device pixel ratios (Windows at 125/150/175% display
+   * scaling) — leaving the last row or column bare white. */
+  function paintField(style) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = style;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
   function draw() {
     var w = cssW, h = cssH;
-    ctx.fillStyle = FADE;
-    ctx.fillRect(0, 0, w, h);
+    paintField(FADE);
     ctx.fillStyle = '#17181a';
     ctx.beginPath();
 

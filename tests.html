@@ -99,6 +99,31 @@
     return out.length ? out[out.length >> 1] : 0;
   }
 
+  /* The closest pair anywhere in the flock — the measure that catches one
+   * pair welded together while the other 138 look fine. */
+  function minNearest(world) {
+    var b = world.boids, best = Infinity;
+    for (var i = 0; i < b.length; i++) {
+      for (var j = i + 1; j < b.length; j++) {
+        var d2 = Boids.torusDist2(b[i].x, b[i].y, b[j].x, b[j].y, world.width, world.height);
+        if (d2 < best) best = d2;
+      }
+    }
+    return isFinite(best) ? Math.sqrt(best) : 0;
+  }
+
+  /* Mean toroidal distance from the flock centre over a slice of the flock. */
+  function meanFromCentre(world, from, to) {
+    var c = Boids.torusCentroid(world.boids, world.width, world.height);
+    var sum = 0, n = 0;
+    for (var i = from; i < to && i < world.boids.length; i++) {
+      sum += Math.sqrt(Boids.torusDist2(c.x, c.y,
+        world.boids[i].x, world.boids[i].y, world.width, world.height));
+      n++;
+    }
+    return n ? sum / n : 0;
+  }
+
   function speedsCapped(world) {
     var cap = world.tuning.maxSpeed * Boids.BURST_CAP + 1e-6;
     for (var i = 0; i < world.boids.length; i++) {
@@ -331,6 +356,50 @@
     ok(w.spread() >= 3, 'coincident flock must gain some spread: ' + w.spread());
   });
 
+  /* Two, not eight. With eight coincident boids the pairwise shoves point in
+   * eight different directions and the cluster opens even if the shove is
+   * applied to both members the same way — which is no separation at all.
+   * A pair has nowhere to hide: the two must be pushed apart, not together. */
+  test('two exactly coincident boids come apart', function () {
+    var w = new Boids.World(400, 300, 2, 5);
+    var v0 = w.tuning.minSpeed * 1.2;
+    for (var i = 0; i < 2; i++) {
+      w.boids[i].x = 100; w.boids[i].y = 100;
+      w.boids[i].vx = v0; w.boids[i].vy = 0;
+    }
+    w.setParams({ cohesion: 1, alignment: 1, separation: 1 });
+
+    function gap() {
+      return Math.sqrt(Boids.torusDist2(
+        w.boids[0].x, w.boids[0].y, w.boids[1].x, w.boids[1].y, w.width, w.height));
+    }
+
+    for (var a = 0; a < 6; a++) w.step(1 / 60);
+    allFinite(w);
+    ok(gap() > 1, 'a coincident pair must separate within 0.1 s: ' + gap());
+
+    for (var b = 0; b < 1800; b++) w.step(1 / 60);   /* 30 s */
+    allFinite(w); inBounds(w);
+    ok(gap() >= 5, 'a coincident pair must stay apart: ' + gap());
+  });
+
+  /* Personal space falls off with distance — it is 1/d at contact, so no
+   * pair can ever be pressed to zero. A constant nudge instead lets the
+   * whole flock stack on one pixel when separation is off. */
+  test('personal space holds even with separation at zero', function () {
+    var w = new Boids.World(900, 700, 140, 9);
+    for (var i = 0; i < 140; i++) {      /* release all 140 from one point */
+      var a = i * 2.399963229728653;
+      w.boids[i].x = 450 + Math.cos(a) * 0.5;
+      w.boids[i].y = 350 + Math.sin(a) * 0.5;
+    }
+    w.setParams({ cohesion: 1, alignment: 0.5, separation: 0 });
+    for (var s = 0; s < 3600; s++) w.step(1 / 60);   /* 60 s */
+    allFinite(w); inBounds(w);
+    var closest = minNearest(w);
+    ok(closest >= 1.5, 'closest pair collapsed to ' + closest.toFixed(3) + 'px');
+  });
+
   test('cohesion pulls a loose flock together', function () {
     var w = new Boids.World(600, 600, 80, 21);
     w.setParams({ cohesion: 1, alignment: 0.5, separation: 0.15 });
@@ -523,6 +592,27 @@
     w.setCount(0);
     w.step(1 / 60);
     ok(w.boids.length === 0, 'empties cleanly');
+  });
+
+  /* Growing the flock has to grow the scratch buffers with it. If it does
+   * not, every boid past the old count reads its forces from off the end of
+   * a Float64Array, gets nothing, and flies straight on through the flock
+   * while the veterans keep steering — the tank ends up with a flock and a
+   * fog of strays, and nothing throws. */
+  test('boids added by setCount steer like the rest', function () {
+    var w = new Boids.World(900, 700, 60, 12);
+    w.warmUp(3);
+    w.setCount(140);
+    w.setParams({ cohesion: 0.8, alignment: 0.8, separation: 0.4 });
+    for (var s = 0; s < 1800; s++) w.step(1 / 60);   /* 30 s */
+    allFinite(w); inBounds(w); speedsCapped(w);
+
+    var veterans = meanFromCentre(w, 0, 60);
+    var newcomers = meanFromCentre(w, 60, 140);
+    ok(newcomers <= veterans * 1.5 + 20,
+      'newcomers drifted off: ' + newcomers.toFixed(1) + 'px from centre vs ' +
+      veterans.toFixed(1) + 'px for the boids that were already here');
+    ok(w.spread() < 120, 'the grown flock should still be a flock: ' + w.spread().toFixed(1));
   });
 
   test('a cold load at a given tank size is deterministic', function () {
