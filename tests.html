@@ -326,6 +326,37 @@
       'separation should open the knot: ' + closest(loose) + ' vs ' + closest(packed));
   });
 
+  test('seedClusters starts tighter than noise, in bounds, and stays finite', function () {
+    var noise = new Boids.World(800, 600, 120, 55);
+    var seeded = new Boids.World(800, 600, 120, 55);
+    seeded.seedClusters(2);
+    allFinite(seeded); inBounds(seeded);
+    ok(seeded.spread() < noise.spread(),
+      'seeded should be tighter: ' + seeded.spread() + ' vs ' + noise.spread());
+    seeded.warmUp(5);
+    allFinite(seeded); inBounds(seeded);
+    var empty = new Boids.World(400, 400, 0, 1);
+    empty.seedClusters(2);          /* must not throw */
+    var one = new Boids.World(400, 400, 3, 1);
+    one.seedClusters(0);            /* clamped to one group */
+    allFinite(one); inBounds(one);
+  });
+
+  test('a warmed, seeded flock disperses on scatter and comes back', function () {
+    var w = new Boids.World(966, 630, 140, 20240816);
+    w.seedClusters(2);
+    w.warmUp(5);
+    var settled = w.spread();
+    w.scatter();
+    var peak = 0;
+    for (var i = 0; i < 150; i++) { w.step(1 / 60); peak = Math.max(peak, w.spread()); }
+    ok(peak > settled * 1.25, 'expected a visible burst: ' + settled + ' -> ' + peak);
+    for (var j = 0; j < 300; j++) w.step(1 / 60);   /* 5 s to recover */
+    var back = w.spread();
+    ok(back < settled, 'expected the flock to re-form: ' + peak + ' -> ' + back);
+    allFinite(w); inBounds(w); speedsCapped(w);
+  });
+
   test('scatter disperses the flock then it re-forms', function () {
     var w = new Boids.World(600, 500, 100, 77);
     w.warmUp(6);
