@@ -173,6 +173,16 @@ var Boids = (function () {
   var SEP_GAIN = 1.7;       /* separation needs more authority to be legible */
   var MAX_DT = 1 / 30;      /* never integrate a step bigger than this */
 
+  /* Personal space: a floor under the separation rule, not a fourth rule.
+   * Without it, separation near zero lets cohesion drive every boid onto the
+   * same point, and once two boids are exactly coincident there is no
+   * direction left to push them apart with — the flock is a single triangle
+   * for good. PERSONAL is about one triangle wide (the drawn boid is 5-7px
+   * long), and it is the only force that does not read a slider. */
+  var PERSONAL = 7;         /* px: below this, neighbours shoulder each other */
+  var PERSONAL_FORCE = 2.6; /* multiple of maxForce, so it outvotes cohesion */
+  var GOLDEN_ANGLE = 2.399963229728653;
+
   function World(width, height, count, seed) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
@@ -213,6 +223,8 @@ var Boids = (function () {
     this.aliY = new Float64Array(n);
     this.sepX = new Float64Array(n);
     this.sepY = new Float64Array(n);
+    this.psX = new Float64Array(n);
+    this.psY = new Float64Array(n);
     this.nbr = new Float64Array(n);
     this.snbr = new Float64Array(n);
   };
@@ -271,10 +283,12 @@ var Boids = (function () {
     var T = this.tuning;
     var per2 = T.perception * T.perception;
     var sep2 = T.sepRadius * T.sepRadius;
+    var ps2 = PERSONAL * PERSONAL;
 
     var cohX = this.cohX, cohY = this.cohY;
     var aliX = this.aliX, aliY = this.aliY;
     var sepX = this.sepX, sepY = this.sepY;
+    var psX = this.psX, psY = this.psY;
     var nbr = this.nbr, snbr = this.snbr;
 
     var i, j;
@@ -282,6 +296,7 @@ var Boids = (function () {
       cohX[i] = 0; cohY[i] = 0;
       aliX[i] = 0; aliY[i] = 0;
       sepX[i] = 0; sepY[i] = 0;
+      psX[i] = 0; psY[i] = 0;
       nbr[i] = 0; snbr[i] = 0;
     }
 
@@ -293,7 +308,17 @@ var Boids = (function () {
         var dx = wrapDelta(bj.x - bi.x, W);
         var dy = wrapDelta(bj.y - bi.y, H);
         var d2 = dx * dx + dy * dy;
-        if (d2 >= per2 || d2 <= EPS) continue;   /* guard: coincident pairs */
+        if (d2 >= per2) continue;
+        if (d2 <= EPS) {
+          /* Exactly coincident: every direction is equally the wrong one, so
+           * take a fixed one from the pair's indices and shove. Deterministic,
+           * and it is the only thing that can break the coincidence lock. */
+          var ang = (i * 3 + j) * GOLDEN_ANGLE;
+          var cx = Math.cos(ang), cy = Math.sin(ang);
+          psX[i] -= cx; psY[i] -= cy;
+          psX[j] += cx; psY[j] += cy;
+          continue;                              /* the rules have no signal */
+        }
         nbr[i]++; nbr[j]++;
         cohX[i] += dx; cohY[i] += dy;
         cohX[j] -= dx; cohY[j] -= dy;
@@ -304,6 +329,12 @@ var Boids = (function () {
           sepX[i] -= dx * inv; sepY[i] -= dy * inv;
           sepX[j] += dx * inv; sepY[j] += dy * inv;
           snbr[i]++; snbr[j]++;
+        }
+        if (d2 < ps2) {
+          var d = Math.sqrt(d2);
+          var g = (PERSONAL - d) / (PERSONAL * d);  /* 1/d at contact, 0 at PERSONAL */
+          psX[i] -= dx * g; psY[i] -= dy * g;
+          psX[j] += dx * g; psY[j] += dy * g;
         }
       }
     }
@@ -341,6 +372,12 @@ var Boids = (function () {
         setMag(sepX[i], sepY[i], maxSpeed, t1);
         limitVec(t1.x - p.vx, t1.y - p.vy, maxForce, t2);
         ax += t2.x * wSep; ay += t2.y * wSep;
+      }
+      /* Personal space, applied whatever the sliders say. */
+      if (psX[i] !== 0 || psY[i] !== 0) {
+        var pf = maxForce * PERSONAL_FORCE;
+        limitVec(psX[i] * pf, psY[i] * pf, pf, t2);
+        ax += t2.x; ay += t2.y;
       }
 
       var vx = p.vx + ax * dt;
@@ -436,6 +473,7 @@ var Boids = (function () {
     TAU: TAU,
     DEFAULT_PARAMS: DEFAULT_PARAMS,
     BURST_CAP: BURST_CAP,
+    PERSONAL: PERSONAL,
     makeRng: makeRng,
     wrapDelta: wrapDelta,
     wrapCoord: wrapCoord,

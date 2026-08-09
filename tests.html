@@ -82,6 +82,23 @@
     }
   }
 
+  /* Median distance from each boid to its nearest neighbour. The measure
+   * that goes to zero when the flock collapses onto one point. */
+  function medianNearest(world) {
+    var b = world.boids, out = [];
+    for (var i = 0; i < b.length; i++) {
+      var best = Infinity;
+      for (var j = 0; j < b.length; j++) {
+        if (i === j) continue;
+        var d2 = Boids.torusDist2(b[i].x, b[i].y, b[j].x, b[j].y, world.width, world.height);
+        if (d2 < best) best = d2;
+      }
+      out.push(Math.sqrt(best));
+    }
+    out.sort(function (p, q) { return p - q; });
+    return out.length ? out[out.length >> 1] : 0;
+  }
+
   function speedsCapped(world) {
     var cap = world.tuning.maxSpeed * Boids.BURST_CAP + 1e-6;
     for (var i = 0; i < world.boids.length; i++) {
@@ -215,15 +232,22 @@
     ok(w.boids.length === 60, 'boid count');
   });
 
-  test('with all rules at zero, boids cruise straight at constant speed', function () {
-    var w = new Boids.World(600, 400, 12, 3);
+  test('with all rules at zero and nobody close, boids cruise straight', function () {
+    /* Two boids, parallel and far enough apart that neither perception nor
+     * personal space ever fires: with the sliders at zero nothing is left
+     * to steer them. */
+    var w = new Boids.World(600, 400, 2, 3);
     w.setParams({ cohesion: 0, alignment: 0, separation: 0 });
-    var b = w.boids[0];
-    var sp0 = Math.hypot(b.vx, b.vy);
-    var vx0 = b.vx, vy0 = b.vy;
+    var sp = w.tuning.minSpeed + 1;
+    w.boids[0].x = 150; w.boids[0].y = 100; w.boids[0].vx = sp; w.boids[0].vy = 0;
+    w.boids[1].x = 450; w.boids[1].y = 300; w.boids[1].vx = sp; w.boids[1].vy = 0;
+    ok(Boids.torusDist2(150, 100, 450, 300, 600, 400) >
+       w.tuning.perception * w.tuning.perception, 'must start out of range');
     for (var i = 0; i < 300; i++) w.step(1 / 60);
-    near(Math.hypot(b.vx, b.vy), sp0, 1e-6, 'speed unchanged');
-    near(b.vx, vx0, 1e-6); near(b.vy, vy0, 1e-6);
+    for (var k = 0; k < 2; k++) {
+      near(w.boids[k].vx, sp, 1e-9, 'vx unchanged');
+      near(w.boids[k].vy, 0, 1e-9, 'vy unchanged');
+    }
     allFinite(w); inBounds(w);
   });
 
@@ -247,7 +271,26 @@
     var x0 = w.boids[0].x;
     w.step(0); w.step(-1); w.step(NaN); w.step(Infinity);
     near(w.boids[0].x, x0, 1e-9, 'invalid dt must not move anything');
-    w.step(10);            /* clamped internally to 1/30 s */
+
+    /* The clamp is only real if step(10) is *identical* to step(1/30).
+     * Finite-and-in-bounds proves nothing here: wrapCoord guarantees it. */
+    var big = new Boids.World(400, 300, 20, 5);
+    var clamped = new Boids.World(400, 300, 20, 5);
+    big.step(10);
+    clamped.step(1 / 30);
+    for (var i = 0; i < big.boids.length; i++) {
+      near(big.boids[i].x, clamped.boids[i].x, 1e-12, 'step(10) must equal step(1/30) in x');
+      near(big.boids[i].y, clamped.boids[i].y, 1e-12, 'step(10) must equal step(1/30) in y');
+      near(big.boids[i].vx, clamped.boids[i].vx, 1e-12, 'and in vx');
+    }
+    /* And nobody may cross more than one clamped step's worth of tank. */
+    var lead = new Boids.World(400, 300, 20, 5);
+    var px = lead.boids[0].x, py = lead.boids[0].y;
+    lead.step(10);
+    var moved = Math.hypot(Boids.wrapDelta(lead.boids[0].x - px, 400),
+                           Boids.wrapDelta(lead.boids[0].y - py, 300));
+    ok(moved <= lead.tuning.maxSpeed * Boids.BURST_CAP / 30 + 1e-9,
+      'a huge dt must not teleport a boid: moved ' + moved);
     allFinite(w); inBounds(w);
   });
 
@@ -262,15 +305,30 @@
     speedsCapped(w);
   });
 
-  test('coincident boids do not produce NaN', function () {
-    var w = new Boids.World(400, 300, 4, 2);
+  test('coincident boids are shoved apart and keep their heading', function () {
+    var w = new Boids.World(400, 300, 8, 2);
+    var v0 = w.tuning.minSpeed * 1.2;
     for (var i = 0; i < w.boids.length; i++) {
       w.boids[i].x = 100; w.boids[i].y = 100;
-      w.boids[i].vx = 0; w.boids[i].vy = 0;
+      w.boids[i].vx = v0; w.boids[i].vy = 0;
     }
     w.setParams({ cohesion: 1, alignment: 1, separation: 1 });
+
+    /* One step. Without the coincident-pair guard the separation sum is
+     * 0 * Infinity = NaN, setMag hands back a zero vector, and every boid
+     * gets a full braking force instead of a shove. */
+    w.step(1 / 60);
+    allFinite(w);
+    for (var k = 0; k < w.boids.length; k++) {
+      ok(w.boids[k].vx > v0 * 0.8,
+        'boid ' + k + ' should still be travelling: vx ' + v0 + ' -> ' + w.boids[k].vx);
+    }
+
+    /* And they must actually come apart, not sit on top of each other. */
     for (var s = 0; s < 240; s++) w.step(1 / 60);
     allFinite(w); inBounds(w);
+    ok(medianNearest(w) >= 3, 'coincident flock must open up: ' + medianNearest(w));
+    ok(w.spread() >= 3, 'coincident flock must gain some spread: ' + w.spread());
   });
 
   test('cohesion pulls a loose flock together', function () {
@@ -301,18 +359,27 @@
     ok(after > 0.5, 'expected a coherent flock, got ' + after);
   });
 
-  test('separation keeps a knot of boids apart', function () {
-    function closest(w) {
-      var best = Infinity;
-      for (var i = 0; i < w.boids.length; i++) {
-        for (var j = i + 1; j < w.boids.length; j++) {
-          var d2 = Boids.torusDist2(w.boids[i].x, w.boids[i].y,
-            w.boids[j].x, w.boids[j].y, w.width, w.height);
-          if (d2 < best) best = d2;
-        }
-      }
-      return Math.sqrt(best);
-    }
+  test('separation pushes a close pair apart, not together', function () {
+    /* The directional test. Two boids, side by side, travelling in parallel,
+     * with only separation switched on. Flip the sign of the rule and the
+     * gap closes instead of opening, so this goes red. */
+    var w = new Boids.World(600, 600, 2, 6);
+    w.setParams({ cohesion: 0, alignment: 0, separation: 1 });
+    var gap0 = 20;
+    var sp = w.tuning.minSpeed;
+    ok(gap0 > Boids.PERSONAL, 'the pair must start outside personal space');
+    ok(gap0 < w.tuning.sepRadius, 'and inside the separation radius');
+    w.boids[0].x = 300 - gap0 / 2; w.boids[0].y = 300; w.boids[0].vx = 0; w.boids[0].vy = sp;
+    w.boids[1].x = 300 + gap0 / 2; w.boids[1].y = 300; w.boids[1].vx = 0; w.boids[1].vy = sp;
+    for (var i = 0; i < 60; i++) w.step(1 / 60);
+    var gap = Math.abs(Boids.wrapDelta(w.boids[1].x - w.boids[0].x, 600));
+    ok(gap > gap0 * 2, 'separation should open the gap: ' + gap0 + ' -> ' + gap);
+    ok(w.boids[0].x < 300 - gap0 / 2, 'the left boid must move left, got ' + w.boids[0].x);
+    ok(w.boids[1].x > 300 + gap0 / 2, 'the right boid must move right, got ' + w.boids[1].x);
+    allFinite(w);
+  });
+
+  test('separation still ranks: more separation, looser flock', function () {
     var packed = new Boids.World(400, 400, 40, 44);
     var loose = new Boids.World(400, 400, 40, 44);
     for (var i = 0; i < 40; i++) {
@@ -322,8 +389,44 @@
     packed.setParams({ cohesion: 1, alignment: 0.5, separation: 0 });
     loose.setParams({ cohesion: 1, alignment: 0.5, separation: 1 });
     for (var s = 0; s < 900; s++) { packed.step(1 / 60); loose.step(1 / 60); }
-    ok(closest(loose) > closest(packed),
-      'separation should open the knot: ' + closest(loose) + ' vs ' + closest(packed));
+    var np = medianNearest(packed), nl = medianNearest(loose);
+    ok(nl > np * 2, 'separation should open the knot: ' + np + ' -> ' + nl);
+    ok(loose.spread() > packed.spread() * 2,
+      'and spread it: ' + packed.spread() + ' -> ' + loose.spread());
+  });
+
+  /* ---------- the flock must stay legible at every setting ---------- */
+
+  test('the flock is a visible knot at every separation setting', function () {
+    /* Separation near zero used to end with all 140 boids on one point:
+     * spread 0.03px, nearest neighbour 0.00px, one triangle on screen and
+     * no way back, because coincident pairs were skipped outright. */
+    var seps = [0, 0.15, 0.5, 1];
+    var prevSpread = -1;
+    for (var k = 0; k < seps.length; k++) {
+      var w = new Boids.World(966, 630, 140, 131);
+      w.seedClusters(2); w.warmUp(5);
+      w.setParams({ cohesion: 0.5, alignment: 0.62, separation: seps[k] });
+      for (var i = 0; i < 1800; i++) w.step(1 / 60);   /* 30 s */
+      var nn = medianNearest(w), sp = w.spread();
+      ok(nn >= 3, 'separation ' + seps[k] + ': nearest neighbour ' + nn + ' < 3px');
+      ok(sp >= 8, 'separation ' + seps[k] + ': spread ' + sp + ' < 8px');
+      ok(sp > prevSpread, 'more separation must mean a looser flock: ' +
+        prevSpread + ' -> ' + sp);
+      prevSpread = sp;
+      allFinite(w); inBounds(w);
+    }
+  });
+
+  test('full cohesion with separation off still leaves a knot, not a point', function () {
+    var w = new Boids.World(966, 630, 140, 131);
+    w.seedClusters(2); w.warmUp(5);
+    w.setParams({ cohesion: 1, alignment: 0.62, separation: 0 });
+    for (var i = 0; i < 1800; i++) w.step(1 / 60);     /* 30 s */
+    var nn = medianNearest(w), sp = w.spread();
+    ok(nn >= 3, 'nearest neighbour collapsed to ' + nn);
+    ok(sp >= 8, 'flock collapsed to a point: spread ' + sp);
+    allFinite(w); inBounds(w);
   });
 
   test('seedClusters starts tighter than noise, in bounds, and stays finite', function () {
