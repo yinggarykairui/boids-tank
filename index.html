@@ -347,8 +347,15 @@
     return Boids.clamp(Math.round((w * h) / 4400), 60, 140);
   }
 
+  /* Reduced motion: a full-viewport field of 140 things moving forever at
+   * half speed is still the thing a vestibular-sensitive visitor asked not
+   * to have. So the page loads stopped, on a composed still, and starts the
+   * first time the visitor moves a slider or presses scatter — after which
+   * it runs at half speed, as before. Nobody is asked to find a new
+   * control; the two controls the page already has are the switch. */
   var calmQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   var timeScale = calmQuery.matches ? 0.5 : 1;
+  var running = !calmQuery.matches;
 
   var cssW = Math.max(1, Math.round(tank.clientWidth));
   var cssH = Math.max(1, Math.round(tank.clientHeight));
@@ -396,7 +403,8 @@
     scaleTri = triScale(w, h);
     world.resize(w, h);
     world.setCount(countFor(w, h));
-    draw();
+    if (running) draw();
+    else composeStill();
   }
 
   var dprMedia = null;
@@ -500,6 +508,7 @@
   var last = 0;
 
   function frame(now) {
+    if (!running) return;                    /* stopped: no frame is asked for */
     if (!last) last = now;
     var elapsed = (now - last) / 1000;
     last = now;
@@ -511,6 +520,26 @@
     if (acc > STEP * 4) acc = 0;
     draw();
     requestAnimationFrame(frame);
+  }
+
+  /* The still a stopped page is left on. A boid's shape on this canvas is
+   * partly its own ink trail, so a single draw of a stopped flock is a
+   * frame of bare darts. Step a third of a second and paint every step of
+   * it, all inside one turn of the event loop: the browser paints once, at
+   * the end, and what it paints is the flock with its tails. */
+  function composeStill() {
+    for (var i = 0; i < 20; i++) { world.step(STEP); draw(); }
+  }
+
+  /* First deliberate interaction starts the motion. Returns true if this is
+   * the one that did it, so the caller can say so. */
+  function wake() {
+    if (running) return false;
+    running = true;
+    last = 0;
+    acc = 0;
+    requestAnimationFrame(frame);
+    return true;
   }
 
   /* ---------- controls ---------- */
@@ -528,7 +557,10 @@
       /* Fill the track up to the thumb, so the accent encodes the value. */
       input.style.setProperty('--p', String(Boids.clamp(v / 100, 0, 1)));
     }
-    input.addEventListener('input', apply);
+    input.addEventListener('input', function () {
+      apply();
+      if (wake()) say('Flock moving.');
+    });
     apply();
   }
 
@@ -548,18 +580,29 @@
   }
 
   document.getElementById('scatter').addEventListener('click', function () {
+    var woke = wake();
     world.scatter();
-    say('Flock scattered. It re-forms in a few seconds.');
+    say((woke ? 'Flock moving. ' : '') + 'Flock scattered. It re-forms in a few seconds.');
   });
 
   if (calmQuery.addEventListener) {
-    calmQuery.addEventListener('change', function (e) { timeScale = e.matches ? 0.5 : 1; });
+    calmQuery.addEventListener('change', function (e) {
+      timeScale = e.matches ? 0.5 : 1;
+      /* Preference lifted mid-visit: never leave the page frozen for
+       * someone who is no longer asking for that. */
+      if (!e.matches) wake();
+    });
   }
 
   /* ---------- go ---------- */
 
   resizeCanvas();
-  requestAnimationFrame(frame);
+  if (running) {
+    requestAnimationFrame(frame);
+  } else {
+    say('The flock is still, because your system asks for reduced motion. ' +
+        'Move a slider or press scatter to start it.');
+  }
 
   /* Exposed for the headless checks; harmless otherwise. */
   window.__tank = world;
