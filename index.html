@@ -50,9 +50,9 @@
     --rowgap: clamp(2px, 0.55vh, 8px);
     --colgap: 28px;
     /* 44px of touch target where there is room, never under 40px on a
-     * phone-sized screen, and only smaller than that on viewports too short
-     * to hold four controls otherwise. */
-    --rangeH: clamp(28px, 7.05vh, 44px);
+     * phone-sized screen, and never under 32px anywhere — which is what a
+     * 320px-tall viewport can afford and still show a tank. */
+    --rangeH: clamp(32px, 7.05vh, 44px);
     max-width: 1000px;
     height: 100vh;
     margin: 0 auto;
@@ -99,7 +99,7 @@
     /* A low floor on purpose: on a 320x320 viewport the controls have to win,
      * and a short tank still flocks. Below roughly 320x256 this floor is what
      * finally produces a scrollbar. */
-    min-height: 48px;
+    min-height: 40px;
     border: 1px solid var(--rule);
     background: var(--field);
     position: relative;
