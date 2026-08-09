@@ -9,7 +9,7 @@
 <style>
   :root {
     --paper: #f7f6f2;
-    --field: #fbfaf7;
+    --field: #fafaf4;   /* also the canvas fade fixed point — see FADE */
     --ink: #17181a;
     --muted: #6b6961;
     --rule: #ddd9d0;
@@ -338,6 +338,10 @@
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    /* A resized canvas comes back transparent; start it on solid field so
+     * the trails have something to fade into. */
+    ctx.fillStyle = SOLID;
+    ctx.fillRect(0, 0, w, h);
     scaleTri = triScale(w, h);
     world.resize(w, h);
     world.setCount(countFor(w, h));
@@ -377,9 +381,22 @@
     return Boids.clamp(Math.sqrt(w * h) / 860, 0.74, 1.12);
   }
 
+  /* Instead of clearing, lay down the field colour at low alpha: the boids
+   * leave short ink trails, so the flock reads as currents rather than as a
+   * field of loose chevrons, and scatter gains a visible shockwave. */
+  /* The fade colour is not --field, and that is deliberate. A translucent
+   * fill is quantised twice over on an 8-bit canvas, so fading toward
+   * rgb(251,250,247) actually stalls at rgb(248,240,240) and leaves a haze
+   * over everything the flock has ever crossed, for good. rgb(253,253,248)
+   * at 0.16 has rgb(250,250,244) as its exact fixed point, which is the
+   * field colour, so trails fade all the way out and stop there. */
+  var SOLID = 'rgb(250, 250, 244)';
+  var FADE = 'rgba(253, 253, 248, 0.16)';
+
   function draw() {
     var w = cssW, h = cssH;
-    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = FADE;
+    ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#17181a';
     ctx.beginPath();
 
