@@ -280,9 +280,13 @@
     .control + .control::before { content: none; }
     .control .row {
       position: absolute;
-      top: 0;
       left: 0;
       right: 0;
+      /* Anchored to the track rather than to the top of the box, so a label
+       * enlarged by a browser minimum font size grows up into the gap
+       * instead of down through the track. */
+      bottom: 50%;
+      margin-bottom: 3px;
       line-height: 1.2;
       pointer-events: none;   /* the whole box stays draggable */
     }
