@@ -8,20 +8,25 @@ A tank of flocking triangles you can tune while they fly — three sliders for t
 
 ## What it does
 
-About 140 boids cross a pale field, each one steering by three rules: move toward
-the flock's centre (cohesion), match the flock's heading (alignment), and keep
-clear of close neighbours (separation). Each rule has a slider, and moving one
-changes the flock in flight — no restart, no reset. Turn separation off and the
-flock collapses into a knot; turn cohesion off and it shears into wandering
-lanes. The **scatter** button gives every boid an outward shove from the centre;
-the flock finds itself again a few seconds later. The edges wrap, so there are no
-corners to pile into.
+Up to 140 boids cross a pale field, fewer in a small tank, each steering by three
+rules: move toward the flock's centre (cohesion), match the flock's heading
+(alignment), and keep clear of close neighbours (separation). Each rule has a
+slider, and moving one changes the flock in flight — no restart, no reset. Turn
+separation off and the flock packs into one dark knot a few boids wide; turn
+cohesion off and it spreads into an evenly spaced field, still all pointing the
+same way. The **scatter** button gives every boid an outward shove from the
+centre; the flock finds itself again a few seconds later.
 
 Everything is keyboard-reachable, and it works at phone width.
 
 ## How to run
 
-Open `index.html` in any browser. There is no build step and no dependency.
+```
+git clone https://github.com/yinggarykairui/boids-tank.git
+cd boids-tank
+```
+
+Then open `index.html` in any browser. There is no build step and no dependency.
 
 Or serve the folder if you prefer:
 
