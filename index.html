@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>boids tank</title>
+<meta name="description" content="A tank of flocking triangles with sliders for cohesion, alignment and separation.">
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --paper: #f7f6f2;
+    --field: #fbfaf7;
+    --ink: #17181a;
+    --muted: #8a8880;
+    --rule: #ddd9d0;
+    --accent: #b4432c;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  body {
+    font: 400 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap {
+    max-width: 1000px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 20px 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  @supports (min-height: 100dvh) {
+    .wrap { min-height: 100dvh; }
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  h1 {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  header p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  #tank {
+    flex: 1 1 auto;
+    min-height: 240px;
+    border: 1px solid var(--rule);
+    background: var(--field);
+    position: relative;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 22px;
+  }
+
+  .control {
+    flex: 1 1 190px;
+    min-width: 150px;
+  }
+
+  .control .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+
+  .control .val {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  /* Range input: 44px tall for touch, but only a hairline is painted. */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: none;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: none;
+  }
+
+  button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    min-width: 112px;
+    padding: 0 20px;
+    font: inherit;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  button:hover { background: var(--ink); color: var(--paper); }
+  button:active { background: var(--ink); color: var(--paper); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  footer {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 520px) {
+    .controls { gap: 4px 18px; }
+    .control { flex: 1 1 100%; }
+    button { width: 100%; margin-top: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>boids tank</h1>
+    <p>three rules, one flock</p>
+  </header>
+
+  <div id="tank">
+    <canvas id="field" role="img" aria-label="A flock of small triangles drifting across a pale field."></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <div class="row"><label for="cohesion">cohesion</label><span class="val" id="cohesion-val">50%</span></div>
+      <input type="range" id="cohesion" min="0" max="100" step="1" value="50">
+    </div>
+    <div class="control">
+      <div class="row"><label for="alignment">alignment</label><span class="val" id="alignment-val">62%</span></div>
+      <input type="range" id="alignment" min="0" max="100" step="1" value="62">
+    </div>
+    <div class="control">
+      <div class="row"><label for="separation">separation</label><span class="val" id="separation-val">55%</span></div>
+      <input type="range" id="separation" min="0" max="100" step="1" value="55">
+    </div>
+    <button type="button" id="scatter">scatter</button>
+  </div>
+
+  <footer>edges wrap. <a href="tests.html">tests</a></footer>
+</div>
+
+<script src="boids.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var COUNT = 140;
+  var canvas = document.getElementById('field');
+  var tank = document.getElementById('tank');
+  var ctx = canvas.getContext('2d');
+
+  var calmQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var timeScale = calmQuery.matches ? 0.5 : 1;
+
+  var cssW = Math.max(1, Math.round(tank.clientWidth));
+  var cssH = Math.max(1, Math.round(tank.clientHeight));
+  var backingScale = 0;
+
+  var world = new Boids.World(cssW, cssH, COUNT, 20240816);
+  /* Load into a formed flock, not a cloud of confetti. */
+  world.warmUp(6);
+
+  /* ---------- canvas sizing ---------- */
+
+  function dpr() {
+    return Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+  }
+
+  function resizeCanvas() {
+    var w = Math.max(1, Math.round(tank.clientWidth));
+    var h = Math.max(1, Math.round(tank.clientHeight));
+    var scale = dpr();
+    /* Invalidate on backing scale as well as CSS size. */
+    if (w === cssW && h === cssH && scale === backingScale) return;
+    cssW = w;
+    cssH = h;
+    backingScale = scale;
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    world.resize(w, h);
+    draw();
+  }
+
+  var dprMedia = null;
+  function watchDpr() {
+    if (dprMedia) {
+      if (dprMedia.removeEventListener) dprMedia.removeEventListener('change', onDprChange);
+      else if (dprMedia.removeListener) dprMedia.removeListener(onDprChange);
+    }
+    dprMedia = window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+    if (dprMedia.addEventListener) dprMedia.addEventListener('change', onDprChange);
+    else if (dprMedia.addListener) dprMedia.addListener(onDprChange);
+  }
+  function onDprChange() {
+    watchDpr();
+    resizeCanvas();
+  }
+  watchDpr();
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(resizeCanvas).observe(tank);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  /* ---------- drawing ---------- */
+
+  var LEN = 6.2, BACK = 4.2, HALF = 2.9;
+  var offX = [0, 0], offY = [0, 0];
+
+  function draw() {
+    var w = cssW, h = cssH;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#17181a';
+    ctx.beginPath();
+
+    var boids = world.boids;
+    var margin = LEN + 2;
+    for (var i = 0; i < boids.length; i++) {
+      var b = boids[i];
+      var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      var ux = 1, uy = 0;
+      if (sp > 1e-6) { ux = b.vx / sp; uy = b.vy / sp; }
+
+      /* Draw wrapped copies near the seams so nothing pops in or out. */
+      var nx = 1, ny = 1;
+      offX[0] = 0; offY[0] = 0;
+      if (b.x < margin) { offX[1] = w; nx = 2; }
+      else if (b.x > w - margin) { offX[1] = -w; nx = 2; }
+      if (b.y < margin) { offY[1] = h; ny = 2; }
+      else if (b.y > h - margin) { offY[1] = -h; ny = 2; }
+
+      for (var a = 0; a < nx; a++) {
+        for (var c = 0; c < ny; c++) {
+          var x = b.x + offX[a], y = b.y + offY[c];
+          ctx.moveTo(x + ux * LEN, y + uy * LEN);
+          ctx.lineTo(x - ux * BACK - uy * HALF, y - uy * BACK + ux * HALF);
+          ctx.lineTo(x - ux * BACK + uy * HALF, y - uy * BACK - ux * HALF);
+          ctx.closePath();
+        }
+      }
+    }
+    ctx.fill();
+  }
+
+  /* ---------- loop (fixed step, bounded catch-up) ---------- */
+
+  var STEP = 1 / 60;
+  var acc = 0;
+  var last = 0;
+
+  function frame(now) {
+    if (!last) last = now;
+    var elapsed = (now - last) / 1000;
+    last = now;
+    if (!isFinite(elapsed) || elapsed < 0) elapsed = 0;
+    if (elapsed > 0.25) elapsed = 0.25;      /* after a background tab pause */
+    acc += elapsed * timeScale;
+    var guard = 0;
+    while (acc >= STEP && guard < 4) { world.step(STEP); acc -= STEP; guard++; }
+    if (acc > STEP * 4) acc = 0;
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- controls ---------- */
+
+  function bind(id, key) {
+    var input = document.getElementById(id);
+    var out = document.getElementById(id + '-val');
+    function apply() {
+      var v = Number(input.value);
+      if (!isFinite(v)) v = 0;
+      var p = {};
+      p[key] = v / 100;
+      world.setParams(p);
+      out.textContent = Math.round(v) + '%';
+    }
+    input.addEventListener('input', apply);
+    apply();
+  }
+
+  bind('cohesion', 'cohesion');
+  bind('alignment', 'alignment');
+  bind('separation', 'separation');
+
+  document.getElementById('scatter').addEventListener('click', function () {
+    world.scatter();
+  });
+
+  if (calmQuery.addEventListener) {
+    calmQuery.addEventListener('change', function (e) { timeScale = e.matches ? 0.5 : 1; });
+  }
+
+  /* ---------- go ---------- */
+
+  resizeCanvas();
+  requestAnimationFrame(frame);
+
+  /* Exposed for the headless checks; harmless otherwise. */
+  window.__tank = world;
+})();
+</script>
+</body>
+</html>
