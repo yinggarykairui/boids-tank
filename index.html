@@ -13,6 +13,10 @@
     --ink: #17181a;
     --muted: #6b6961;
     --rule: #ddd9d0;
+    /* The unfilled part of a slider track. --rule is a hairline colour for
+     * borders you are not meant to look at; on a 2px track it vanished, and
+     * a slider at 0% became a lone dot with no visible extent. */
+    --track: #8c8a82;
     --accent: #b4432c;
   }
 
@@ -32,33 +36,53 @@
   }
 
   /* A definite height, not a minimum: the column can then shrink as well as
-   * grow, so a shorter viewport gives the tank back instead of scrolling. */
+   * grow, so a shorter viewport gives the tank back instead of scrolling.
+   *
+   * Every piece of chrome is sized continuously off the viewport height
+   * rather than switched by a height media query. A query is a step, and a
+   * step means the tank jumps as you drag the window edge; clamp() spends
+   * the same pixels smoothly, so a 1px taller window is at most a 1px
+   * different tank. */
   .wrap {
+    --pad-t: clamp(8px, 1.6vh, 20px);
+    --pad-b: clamp(8px, 1.8vh, 20px);
+    --gap: clamp(6px, 1.2vh, 14px);
+    --rowgap: clamp(2px, 0.55vh, 8px);
+    --colgap: 28px;
+    /* 44px of touch target where there is room, never under 40px on a
+     * phone-sized screen, and only smaller than that on viewports too short
+     * to hold four controls otherwise. */
+    --rangeH: clamp(28px, 7.05vh, 44px);
     max-width: 1000px;
     height: 100vh;
     margin: 0 auto;
-    padding: 20px 16px 24px;
+    padding: var(--pad-t) 16px var(--pad-b);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--gap);
   }
 
   @supports (height: 100dvh) {
     .wrap { height: 100dvh; }
   }
 
+  /* Title and tagline share a baseline and sit together. Flush-right, on a
+   * 1440px screen, the tagline was 850px away from the thing it describes. */
   header {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 2px 12px;
     flex-wrap: wrap;
   }
 
+  /* The one deliberate step in the type scale: 20 / 15 / 13 / 12. Everything
+   * else on the page was within a pixel of everything else. */
   h1 {
-    font-size: 15px;
+    font-size: 20px;
+    line-height: 1.2;
     font-weight: 500;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     margin: 0;
   }
 
@@ -72,7 +96,10 @@
    * controls, and gives it straight back when the viewport shortens. */
   #tank {
     flex: 1 1 0;
-    min-height: 100px;
+    /* A low floor on purpose: on a 320x320 viewport the controls have to win,
+     * and a short tank still flocks. Below roughly 320x256 this floor is what
+     * finally produces a scrollbar. */
+    min-height: 48px;
     border: 1px solid var(--rule);
     background: var(--field);
     position: relative;
@@ -93,7 +120,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 10px 28px;
+    gap: var(--rowgap) var(--colgap);
   }
 
   .control {
@@ -130,7 +157,7 @@
     color: var(--ink);
   }
 
-  /* Range input: 44px tall for touch, but only a hairline is painted.
+  /* Range input: a touch target tall, but only a hairline is painted.
    * --p (0..1) is written by the same function that writes the readout, and
    * drives how much of the track is accent. */
   input[type="range"] {
@@ -138,7 +165,7 @@
     appearance: none;
     display: block;
     width: 100%;
-    height: 44px;
+    height: var(--rangeH);
     margin: 0;
     padding: 0;
     background: transparent;
@@ -150,14 +177,14 @@
   input[type="range"]::-webkit-slider-runnable-track {
     height: 2px;
     background: linear-gradient(to right,
-      var(--accent) 0 var(--fill), var(--rule) var(--fill) 100%);
+      var(--accent) 0 var(--fill), var(--track) var(--fill) 100%);
     border-radius: 2px;
   }
 
   input[type="range"]::-moz-range-track {
     height: 2px;
     background: linear-gradient(to right,
-      var(--accent) 0 var(--fill), var(--rule) var(--fill) 100%);
+      var(--accent) 0 var(--fill), var(--track) var(--fill) 100%);
     border-radius: 2px;
   }
 
@@ -182,7 +209,7 @@
 
   button {
     flex: 0 0 auto;
-    min-height: 44px;
+    min-height: var(--rangeH);
     min-width: 112px;
     padding: 0 20px;
     font: inherit;
@@ -209,20 +236,26 @@
 
   footer {
     font-size: 12px;
+    line-height: 1.4;
     color: var(--muted);
   }
 
-  /* Padded to clear the 24x24 minimum target without moving the line. */
+  /* Padded to clear the 24x24 minimum target without moving the line. No
+   * left padding to give back: at -10px the focus ring's left edge landed
+   * 13px into the word before the link and struck it through. */
   footer a {
     display: inline-block;
-    padding: 6px 10px;
-    margin: -6px -10px;
+    padding: 6px 8px;
+    margin: -6px -8px -6px 0;
     color: var(--muted);
     text-decoration-color: var(--muted);
     text-underline-offset: 2px;
   }
 
   footer a:hover { color: var(--ink); }
+
+  /* The padding is already the target; the ring goes round the word. */
+  footer a:focus-visible { outline-offset: 1px; }
 
   .sr-only {
     position: absolute;
@@ -237,20 +270,32 @@
     border: 0;
   }
 
-  /* Short viewports (landscape phones, 200% zoom): trim the chrome so all
-   * four controls still land above the fold. */
-  @media (max-height: 620px) {
-    .wrap { padding: 12px 16px 14px; gap: 10px; }
-    .controls { gap: 6px 28px; }
-    input[type="range"] { height: 34px; }
-    button { min-height: 38px; }
-  }
-
+  /* Narrow: the sliders stack, so a control that costs a text row plus a
+   * touch target costs the tank 60px it cannot spare. The label rides in the
+   * range box's own empty upper half instead — the hairline track is painted
+   * down the middle of that box, so the space above it was already there. */
   @media (max-width: 520px) {
-    .controls { gap: 4px 18px; }
+    .wrap { --colgap: 18px; }
     .control { flex: 1 1 100%; }
     .control + .control::before { content: none; }
-    button { width: 100%; margin-top: 8px; }
+    .control .row {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      line-height: 1.2;
+      pointer-events: none;   /* the whole box stays draggable */
+    }
+    button { width: 100%; }
+  }
+
+  /* Between the stacked layout and the width where all four fit on one line,
+   * the button wraps to a line of its own. Left-aligned it sat under the
+   * cohesion slider with half a screen of void beside it and read as a bug;
+   * right-aligned it lands under the separation slider's right edge, which
+   * is where it lives on a wide screen. */
+  @media (min-width: 521px) and (max-width: 797px) {
+    #scatter { margin-left: auto; margin-top: 8px; }
   }
 </style>
 </head>
