@@ -354,6 +354,15 @@
     allFinite(w); inBounds(w);
     ok(medianNearest(w) >= 3, 'coincident flock must open up: ' + medianNearest(w));
     ok(w.spread() >= 3, 'coincident flock must gain some spread: ' + w.spread());
+
+    /* In both axes. The shove direction comes from the pair's indices; if it
+     * ever collapsed to one fixed direction the cluster would open into a
+     * flat line and stay welded across it. */
+    var dy = 0;
+    for (var q = 0; q < w.boids.length; q++) {
+      dy = Math.max(dy, Math.abs(Boids.wrapDelta(w.boids[q].y - w.boids[0].y, w.height)));
+    }
+    ok(dy > 2, 'coincident flock opened along one axis only: y extent ' + dy);
   });
 
   /* Two, not eight. With eight coincident boids the pairwise shoves point in
