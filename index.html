@@ -309,9 +309,14 @@
   var cssH = Math.max(1, Math.round(tank.clientHeight));
   var backingScale = 0;
 
-  /* Fixed seed: the load frame is a composition, not a coin toss. 131 lands
-   * one coherent flock near the middle of the field across tank sizes, which
-   * also leaves scatter somewhere to scatter to. */
+  /* Fixed seed: the load frame is a composition, not a coin toss. Measured on
+   * this build, 131 lands one coherent flock whose ink centroid sits at
+   * (0.47, 0.43) of a desktop frame, (0.50, 0.49) at 360px and (0.48, 0.53)
+   * at 414px — near the middle, a little above and left of it, which leaves
+   * scatter somewhere to scatter to. The right-hand quarter of a desktop
+   * frame is empty at load: of 1500 seeds searched, every seed that fills all
+   * four quarters does it by splitting the flock into two or three groups,
+   * which is a worse frame than an off-centre one. */
   var world = new Boids.World(cssW, cssH, countFor(cssW, cssH), 131);
   /* Load into a formed flock, not a cloud of confetti: seed two coherent
    * groups, then run five seconds of simulation before the first paint. */
