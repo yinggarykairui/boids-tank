@@ -395,6 +395,35 @@ var Boids = (function () {
     return meanSpread(this.boids, this.width, this.height);
   };
 
+  /* Seed the tank as a few coherent groups rather than uniform noise.
+   * From noise the flock takes ~10 s to organise itself, which is 10 s of
+   * the page not looking like what it is. */
+  World.prototype.seedClusters = function (groups) {
+    var g = Math.max(1, groups | 0);
+    var n = this.boids.length;
+    if (n === 0) return;
+    var W = this.width, H = this.height;
+    var radius = this.tuning.perception * 0.75;
+    var cx = [], cy = [], ca = [];
+    for (var k = 0; k < g; k++) {
+      cx.push(this.rng() * W);
+      cy.push(this.rng() * H);
+      ca.push(this.rng() * TAU);
+    }
+    for (var i = 0; i < n; i++) {
+      var b = this.boids[i];
+      var m = i % g;
+      var ang = this.rng() * TAU;
+      var rad = Math.sqrt(this.rng()) * radius;
+      b.x = wrapCoord(cx[m] + Math.cos(ang) * rad, W);
+      b.y = wrapCoord(cy[m] + Math.sin(ang) * rad, H);
+      var head = ca[m] + (this.rng() - 0.5) * 0.7;
+      var sp = this.tuning.maxSpeed * (0.8 + this.rng() * 0.2);
+      b.vx = Math.cos(head) * sp;
+      b.vy = Math.sin(head) * sp;
+    }
+  };
+
   /* Run the sim forward before the first paint so the flock is already a
    * flock when the page loads, rather than a cloud of confetti. */
   World.prototype.warmUp = function (seconds, stepDt) {

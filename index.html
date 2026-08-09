@@ -23,7 +23,6 @@
     padding: 0;
     background: var(--paper);
     color: var(--ink);
-    overflow-x: hidden;
   }
 
   body {
@@ -180,6 +179,14 @@
     color: var(--muted);
   }
 
+  footer a {
+    color: var(--muted);
+    text-decoration-color: var(--rule);
+    text-underline-offset: 2px;
+  }
+
+  footer a:hover { color: var(--ink); }
+
   @media (max-width: 520px) {
     .controls { gap: 4px 18px; }
     .control { flex: 1 1 100%; }
@@ -235,8 +242,10 @@
   var backingScale = 0;
 
   var world = new Boids.World(cssW, cssH, COUNT, 20240816);
-  /* Load into a formed flock, not a cloud of confetti. */
-  world.warmUp(6);
+  /* Load into a formed flock, not a cloud of confetti: seed two coherent
+   * groups, then run five seconds of simulation before the first paint. */
+  world.seedClusters(2);
+  world.warmUp(5);
 
   /* ---------- canvas sizing ---------- */
 
@@ -258,6 +267,7 @@
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    scaleTri = triScale(w, h);
     world.resize(w, h);
     draw();
   }
@@ -286,7 +296,14 @@
   /* ---------- drawing ---------- */
 
   var LEN = 6.2, BACK = 4.2, HALF = 2.9;
+  var scaleTri = 1;
   var offX = [0, 0], offY = [0, 0];
+
+  /* Slightly smaller triangles in a small tank, so a phone does not read
+   * as a page of chevrons. */
+  function triScale(w, h) {
+    return Boids.clamp(Math.sqrt(w * h) / 860, 0.74, 1.12);
+  }
 
   function draw() {
     var w = cssW, h = cssH;
@@ -294,8 +311,9 @@
     ctx.fillStyle = '#17181a';
     ctx.beginPath();
 
+    var len = LEN * scaleTri, back = BACK * scaleTri, half = HALF * scaleTri;
     var boids = world.boids;
-    var margin = LEN + 2;
+    var margin = len + 2;
     for (var i = 0; i < boids.length; i++) {
       var b = boids[i];
       var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
@@ -313,9 +331,9 @@
       for (var a = 0; a < nx; a++) {
         for (var c = 0; c < ny; c++) {
           var x = b.x + offX[a], y = b.y + offY[c];
-          ctx.moveTo(x + ux * LEN, y + uy * LEN);
-          ctx.lineTo(x - ux * BACK - uy * HALF, y - uy * BACK + ux * HALF);
-          ctx.lineTo(x - ux * BACK + uy * HALF, y - uy * BACK - ux * HALF);
+          ctx.moveTo(x + ux * len, y + uy * len);
+          ctx.lineTo(x - ux * back - uy * half, y - uy * back + ux * half);
+          ctx.lineTo(x - ux * back + uy * half, y - uy * back - ux * half);
           ctx.closePath();
         }
       }
