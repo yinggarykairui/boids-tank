@@ -290,10 +290,17 @@
 (function () {
   'use strict';
 
-  var COUNT = 140;
   var canvas = document.getElementById('field');
   var tank = document.getElementById('tank');
   var ctx = canvas.getContext('2d');
+
+  /* The flock is sized by the tank, not by the desktop this was written on.
+   * A fixed 140 puts 3.3x the ink on a phone that it puts on a desktop, and
+   * the flock stops reading as triangles at all. 140 in a full-size tank,
+   * down to a floor of 60 in the smallest one. */
+  function countFor(w, h) {
+    return Boids.clamp(Math.round((w * h) / 4400), 60, 140);
+  }
 
   var calmQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   var timeScale = calmQuery.matches ? 0.5 : 1;
@@ -305,7 +312,7 @@
   /* Fixed seed: the load frame is a composition, not a coin toss. 131 lands
    * one coherent flock near the middle of the field across tank sizes, which
    * also leaves scatter somewhere to scatter to. */
-  var world = new Boids.World(cssW, cssH, COUNT, 131);
+  var world = new Boids.World(cssW, cssH, countFor(cssW, cssH), 131);
   /* Load into a formed flock, not a cloud of confetti: seed two coherent
    * groups, then run five seconds of simulation before the first paint. */
   world.seedClusters(2);
@@ -333,6 +340,7 @@
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     scaleTri = triScale(w, h);
     world.resize(w, h);
+    world.setCount(countFor(w, h));
     draw();
   }
 

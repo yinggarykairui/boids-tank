@@ -271,6 +271,37 @@ var Boids = (function () {
     }
   };
 
+  /* Grow or shrink the flock without disturbing the boids already in it.
+   * Survivors keep their exact state; newcomers arrive inside the flock
+   * rather than as strays, and draw from the world's own RNG so a cold load
+   * at a given size always produces the same frame. */
+  World.prototype.setCount = function (count) {
+    var n = Math.max(0, count | 0);
+    if (n === this.count) return;
+    if (n < this.count) {
+      this.boids.length = n;
+    } else {
+      var c = torusCentroid(this.boids, this.width, this.height, this._c);
+      var radius = this.tuning.perception * 0.75;
+      for (var i = this.count; i < n; i++) {
+        var ang = this.rng() * TAU;
+        var rad = Math.sqrt(this.rng()) * radius;
+        var head = this.rng() * TAU;
+        var sp = this.tuning.minSpeed +
+          this.rng() * (this.tuning.maxSpeed - this.tuning.minSpeed);
+        this.boids.push({
+          x: wrapCoord(c.x + Math.cos(ang) * rad, this.width),
+          y: wrapCoord(c.y + Math.sin(ang) * rad, this.height),
+          vx: Math.cos(head) * sp,
+          vy: Math.sin(head) * sp
+        });
+      }
+    }
+    this.count = n;
+    this._alloc(n);
+    this.tuning = deriveTuning(this.width, this.height, n);
+  };
+
   /* One fixed integration step. dt is seconds and is clamped internally. */
   World.prototype.step = function (dt) {
     if (!isFinite(dt) || dt <= 0) return;

@@ -501,6 +501,49 @@
     allFinite(w); inBounds(w);
   });
 
+  test('setCount adds and removes boids without disturbing the survivors', function () {
+    var w = new Boids.World(900, 700, 140, 12);
+    w.warmUp(3);
+    var snap = w.boids.slice(0, 60).map(function (b) {
+      return { x: b.x, y: b.y, vx: b.vx, vy: b.vy };
+    });
+    w.setCount(60);
+    ok(w.boids.length === 60 && w.count === 60, 'shrunk to 60');
+    for (var i = 0; i < 60; i++) {
+      near(w.boids[i].x, snap[i].x, 0, 'survivor ' + i + ' moved');
+      near(w.boids[i].y, snap[i].y, 0);
+      near(w.boids[i].vx, snap[i].vx, 0);
+    }
+    w.setCount(140);
+    ok(w.boids.length === 140, 'grown back to 140');
+    for (var j = 0; j < 60; j++) near(w.boids[j].x, snap[j].x, 0, 'survivor ' + j + ' moved on growth');
+    allFinite(w); inBounds(w);
+    for (var s = 0; s < 300; s++) w.step(1 / 60);
+    allFinite(w); inBounds(w); speedsCapped(w);
+    w.setCount(0);
+    w.step(1 / 60);
+    ok(w.boids.length === 0, 'empties cleanly');
+  });
+
+  test('a cold load at a given tank size is deterministic', function () {
+    function build(w, h, n) {
+      var world = new Boids.World(w, h, n, 131);
+      world.seedClusters(2); world.warmUp(5);
+      return world;
+    }
+    var a = build(966, 630, 138), b = build(966, 630, 138);
+    for (var i = 0; i < a.boids.length; i++) {
+      near(a.boids[i].x, b.boids[i].x, 0, 'same seed, same frame');
+      near(a.boids[i].y, b.boids[i].y, 0);
+    }
+    /* A resize round trip must land somewhere sane, not somewhere broken. */
+    a.resize(328, 264); a.setCount(60);
+    allFinite(a); inBounds(a);
+    a.resize(966, 630); a.setCount(138);
+    allFinite(a); inBounds(a);
+    ok(a.boids.length === 138, 'count restored');
+  });
+
   test('setParams clamps out-of-range values', function () {
     var w = new Boids.World(300, 300, 5, 4);
     w.setParams({ cohesion: 5, alignment: -3, separation: 0.4 });
