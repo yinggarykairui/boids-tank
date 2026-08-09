@@ -241,7 +241,10 @@
   var cssH = Math.max(1, Math.round(tank.clientHeight));
   var backingScale = 0;
 
-  var world = new Boids.World(cssW, cssH, COUNT, 20240816);
+  /* Fixed seed: the load frame is a composition, not a coin toss. 131 lands
+   * one coherent flock near the middle of the field across tank sizes, which
+   * also leaves scatter somewhere to scatter to. */
+  var world = new Boids.World(cssW, cssH, COUNT, 131);
   /* Load into a formed flock, not a cloud of confetti: seed two coherent
    * groups, then run five seconds of simulation before the first paint. */
   world.seedClusters(2);
