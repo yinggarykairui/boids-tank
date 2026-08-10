@@ -288,7 +288,22 @@
       bottom: 50%;
       margin-bottom: 3px;
       line-height: 1.2;
-      pointer-events: none;   /* the whole box stays draggable */
+      /* The gaps in the row are see-through, so the box under them stays
+       * draggable — but the words themselves take their own taps. Falling
+       * through, a tap on "separation" reached the range at the x of the
+       * word, which is the left end of the track: the value jumped to near
+       * zero and there is no undo. Now the text absorbs it and the label
+       * hands focus to the slider, which is what a label is for. */
+      pointer-events: none;
+    }
+    /* Not selectable: taking the pointer back also made the words draggable
+     * as text, and a caption smeared blue — or a long-press selection handle
+     * standing over the track — is not what a slider should do. */
+    .control .row > * {
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
     }
     button { width: 100%; }
   }
@@ -565,6 +580,14 @@
       apply();
       if (wake()) say('Flock moving.');
     });
+    /* The readout is a span, and pointer-events alone does not save it: on a
+     * narrow screen it lies over the range box, and a span with nothing
+     * listening is not a tap target, so Chromium's touch adjustment hands
+     * the tap to the range underneath and the value jumps to the readout's
+     * x. Listening is what makes it a target. Focus goes to the slider, so
+     * tapping either half of the caption does the same thing as tapping the
+     * label. */
+    out.addEventListener('click', function () { input.focus(); });
     apply();
   }
 
