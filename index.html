@@ -312,18 +312,35 @@
      * padding rather than a taller line-height: the inert zone used to be
      * exactly the glyph box, so a tap 3px above the cap line fell past the
      * caption into the range and set it from x — on the word "separation",
-     * 55% to 7%, with no undo. The box now reaches the top of the range and
-     * down to the track; the negative margins give the space straight back,
-     * so not one glyph moves. Horizontal is deliberately untouched: the gaps
-     * between the words stay see-through, which is what keeps the upper half
-     * of the box draggable. */
+     * 55% to 7%, with no undo. The box now reaches the top of the range;
+     * the negative margins give the space straight back, so not one glyph
+     * moves. Horizontal is deliberately untouched: the gaps between the
+     * words stay see-through, which is what keeps the upper half of the box
+     * draggable.
+     *
+     * --capgap is exactly the bare strip between the top of the range box
+     * and the top of the caption: half the range, less the 3px the caption
+     * is lifted off the track, less the caption's own line box. A constant
+     * would be wrong in both directions. Too small and the strip survives
+     * at a 44px target; too large and the box climbs out of the range and
+     * over the tank's bottom edge — at 320x320, where the target is 32px,
+     * the caption is *already* taller than the space above the track and
+     * the correct padding is none. max() spends nothing there.
+     *
+     * The bottom is 1px, not 4. At 4 the padded box crossed the track's
+     * centre line and swallowed the whole 2px hairline behind every glyph
+     * run: a quarter of each track went dead at the low end, and a thumb
+     * parked at 0 could only be grabbed by its bottom third. Closing a
+     * 3px halo is not worth a dead track — 1px leaves the painted line and
+     * the thumb entirely live. */
     .control .row > * {
+      --capgap: max(0px, calc(var(--rangeH) / 2 - 3px - 1.2em));
       pointer-events: auto;
       cursor: pointer;
       -webkit-user-select: none;
       user-select: none;
-      padding: 7px 0 4px;
-      margin: -7px 0 -4px;
+      padding: var(--capgap) 0 1px;
+      margin: calc(-1 * var(--capgap)) 0 -1px;
     }
     button { width: 100%; }
   }

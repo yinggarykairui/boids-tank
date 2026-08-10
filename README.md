@@ -2,7 +2,7 @@
 
 A tank of flocking darts you can tune while they fly — three sliders for the three rules that make a flock, and a button that blows it apart.
 
-![The tank a quarter-second after scatter: about a hundred dark darts flying
+![The tank a quarter-second after scatter: about 140 dark darts flying
 outward from one point near the middle of a pale field, each dragging a long
 ink trail behind it, so the burst reads as a starburst of lines. Below the
 tank, three labelled sliders — cohesion 50%, alignment 62%, separation 55% —
