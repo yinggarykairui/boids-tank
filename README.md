@@ -23,6 +23,10 @@ few seconds later.
 
 Everything is keyboard-reachable, and it works at phone width.
 
+If your system asks for reduced motion the page loads stopped, on a composed
+still, and starts the first time you move a slider or press scatter — then
+runs at half speed.
+
 ## How to run
 
 ```
