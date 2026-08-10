@@ -2,11 +2,12 @@
 
 A tank of flocking darts you can tune while they fly — three sliders for the three rules that make a flock, and a button that blows it apart.
 
-![The tank a quarter-second after scatter: about 140 dark darts flying
-outward from one point near the middle of a pale field, each dragging a long
-ink trail behind it, so the burst reads as a starburst of lines. Below the
-tank, three labelled sliders — cohesion 50%, alignment 62%, separation 55% —
-and a scatter button.](screenshot.png)
+![The tank a quarter-second after scatter: 140 dark darts flying outward from
+a single point a little above and left of the field's centre, each dragging a
+long ink trail behind it, so the burst reads as a starburst of lines. A
+handful more rise through the bottom edge, having wrapped round from the top.
+Below the tank, three labelled sliders — cohesion 50%, alignment 62%,
+separation 55% — and a scatter button.](screenshot.png)
 
 **[Live demo](https://yinggarykairui.github.io/boids-tank/)**
 

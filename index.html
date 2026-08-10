@@ -20,11 +20,16 @@
      * own edge and the gutter hairlines between controls. Both were #ddd9d0
      * — 1.30:1 against the paper, under every threshold there is. The footer
      * said "edges wrap" about a border nobody could find, and the separators
-     * came out fainter than the 3.20:1 track they separate. 2.69:1 is a line
-     * you can see while staying quieter than the track, which is correct
-     * weighting rather than a compromise: the gutter rule is 32px tall and
-     * the track is 2px, so equal contrast would not be equal presence. */
-    --edge: #9c978b;
+     * came out fainter than the 3.20:1 track they separate.
+     *
+     * Deliberately the same value as --track rather than a fourth grey. The
+     * first attempt sat at #9c978b, 2.69:1, on the theory that a 50px rule
+     * should be quieter than a 2px track at equal weight — but 2.69 misses
+     * WCAG 1.4.11's 3:1 for a boundary the footer treats as informational,
+     * and at 1px nobody can tell the two greys apart anyway. The size
+     * difference already does the weighting; a second grey 0.5:1 away from
+     * the first only adds a token nobody can see. */
+    --edge: var(--track);
     --accent: #b4432c;
   }
 
