@@ -306,12 +306,24 @@
     }
     /* Not selectable: taking the pointer back also made the words draggable
      * as text, and a caption smeared blue — or a long-press selection handle
-     * standing over the track — is not what a slider should do. */
+     * standing over the track — is not what a slider should do.
+     *
+     * The padding is the second half of the repair, and the reason it is
+     * padding rather than a taller line-height: the inert zone used to be
+     * exactly the glyph box, so a tap 3px above the cap line fell past the
+     * caption into the range and set it from x — on the word "separation",
+     * 55% to 7%, with no undo. The box now reaches the top of the range and
+     * down to the track; the negative margins give the space straight back,
+     * so not one glyph moves. Horizontal is deliberately untouched: the gaps
+     * between the words stay see-through, which is what keeps the upper half
+     * of the box draggable. */
     .control .row > * {
       pointer-events: auto;
       cursor: pointer;
       -webkit-user-select: none;
       user-select: none;
+      padding: 7px 0 4px;
+      margin: -7px 0 -4px;
     }
     button { width: 100%; }
   }
