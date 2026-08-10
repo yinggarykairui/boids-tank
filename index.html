@@ -12,11 +12,19 @@
     --field: #fafaf4;   /* also the canvas fade fixed point — see FADE */
     --ink: #17181a;
     --muted: #6b6961;
-    --rule: #ddd9d0;
-    /* The unfilled part of a slider track. --rule is a hairline colour for
-     * borders you are not meant to look at; on a 2px track it vanished, and
-     * a slider at 0% became a lone dot with no visible extent. */
+    /* The unfilled part of a slider track. The old #ddd9d0 hairline vanished
+     * on a 2px track, and a slider at 0% became a lone dot with no visible
+     * extent. 3.20:1 against the paper. */
     --track: #8c8a82;
+    /* A line you are meant to see, but not to read as content: the tank's
+     * own edge and the gutter hairlines between controls. Both were #ddd9d0
+     * — 1.30:1 against the paper, under every threshold there is. The footer
+     * said "edges wrap" about a border nobody could find, and the separators
+     * came out fainter than the 3.20:1 track they separate. 2.69:1 is a line
+     * you can see while staying quieter than the track, which is correct
+     * weighting rather than a compromise: the gutter rule is 32px tall and
+     * the track is 2px, so equal contrast would not be equal presence. */
+    --edge: #9c978b;
     --accent: #b4432c;
   }
 
@@ -100,7 +108,7 @@
      * and a short tank still flocks. Below roughly 320x256 this floor is what
      * finally produces a scrollbar. */
     min-height: 40px;
-    border: 1px solid var(--rule);
+    border: 1px solid var(--edge);
     background: var(--field);
     position: relative;
     overflow: hidden;
@@ -137,7 +145,7 @@
     left: -14px;
     top: 2px;
     bottom: 10px;
-    border-left: 1px solid var(--rule);
+    border-left: 1px solid var(--edge);
   }
 
   /* Label and value sit together: the pair must be closer to each other than
